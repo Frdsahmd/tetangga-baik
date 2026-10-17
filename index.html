@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petualangan Tetangga Baik - PAI Kelas 6 SD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Fredoka', 'Nunito', sans-serif;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .aspect-16-9-wrapper {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #0f172a;
+        }
+
+        .game-container-16-9 {
+            width: 100%;
+            max-width: 1100px;
+            aspect-ratio: 16 / 9;
+            max-height: 650px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            border-radius: 1.5rem;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        }
+
+        .btn-bounce {
+            transition: all 0.15s ease-in-out;
+        }
+        .btn-bounce:hover {
+            transform: scale(1.05);
+        }
+        .btn-bounce:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(245, 158, 11, 0.7); }
+            50% { transform: scale(1.08); box-shadow: 0 0 20px rgba(245, 158, 11, 0.9); }
+        }
+
+        .btn-pulse {
+            animation: pulseGlow 1.2s infinite ease-in-out;
+        }
+
+        #gameCanvas {
+            border-radius: 1rem;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .drag-item {
+            cursor: grab;
+            transition: transform 0.1s ease;
+        }
+        .drag-item:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 m-0 p-0 overflow-hidden">
+
+    <div class="aspect-16-9-wrapper p-2 md:p-4">
+        <div id="gameBox" class="game-container-16-9 relative flex flex-col justify-between p-3 md:p-4 border-4 border-amber-300">
+
+            <!-- HEADER BAR -->
+            <div class="flex justify-between items-center bg-white/95 backdrop-blur-md rounded-2xl p-2.5 shadow-md z-20 border-2 border-sky-200">
+                <div class="flex items-center gap-2 md:gap-3">
+                    <div class="bg-amber-400 text-amber-950 font-extrabold px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-sm text-xs md:text-sm">
+                        <i class="fa-solid fa-star text-amber-100"></i>
+                        <span id="scoreText">Poin Akhlak: 0</span>
+                    </div>
+                    <div class="bg-sky-500 text-white font-bold px-3 py-1 rounded-xl text-xs md:text-sm flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-gamepad"></i>
+                        <span id="levelBadge">Level 1: Kewajiban Berbagi Makanan</span>
+                    </div>
+                </div>
+
+                <div class="hidden md:flex items-center gap-2 font-black text-sky-900 text-sm">
+                    🏡 Misi Akhlak Kepada Tetangga
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleAudio()" id="audioBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-9 h-9 rounded-xl flex items-center justify-center transition btn-bounce">
+                        <i class="fa-solid fa-volume-high text-sm" id="audioIcon"></i>
+                    </button>
+                    <button onclick="openDeveloperModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition btn-bounce shadow-md">
+                        <i class="fa-solid fa-user-gear"></i>
+                        <span>Pengembang</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- MAIN GAME AREA -->
+            <div id="mainArea" class="relative flex-1 my-2 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center bg-slate-800">
+
+                <!-- 1. START SCREEN -->
+                <div id="startScreen" class="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-white/95 backdrop-blur-md rounded-2xl border-4 border-sky-300 animate-pop text-center">
+                    <div class="w-16 h-16 bg-sky-500 text-white rounded-2xl flex items-center justify-center text-3xl mb-2 shadow-lg border-2 border-white">
+                        <i class="fa-solid fa-house-chimney-user"></i>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-black text-sky-900 mb-1">Misi Tetangga Baik Interaktif</h1>
+                    <p class="text-slate-600 text-xs md:text-sm mb-3 max-w-lg font-medium">
+                        Jalan menyusuri pemukiman, antarkan sup hangat ke tetangga, lindungi hak ketenangan, dan bantu tetangga sakit!
+                    </p>
+
+                    <div class="w-full max-w-md bg-sky-50 p-3.5 rounded-2xl border-2 border-sky-200 mb-4 text-left">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-sky-800 uppercase tracking-wider mb-1">Nama Siswa:</label>
+                                <input type="text" id="playerNameInput" value="Ahmad Hasnan" class="w-full px-3 py-1.5 text-xs md:text-sm rounded-xl border-2 border-sky-300 focus:outline-none font-bold text-slate-800">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-sky-800 uppercase tracking-wider mb-1">Kelas:</label>
+                                <input type="text" id="playerClassInput" value="6 SD (Fase C)" class="w-full px-3 py-1.5 text-xs md:text-sm rounded-xl border-2 border-sky-300 focus:outline-none font-bold text-slate-800">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="startGame()" class="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold text-base px-8 py-3 rounded-2xl shadow-lg border-b-4 border-green-800 btn-bounce flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Mulai Petualangan
+                    </button>
+                </div>
+
+                <!-- 2. GAMEPLAY CANVAS AREA -->
+                <div id="gameplayScreen" class="w-full h-full relative hidden">
+                    <canvas id="gameCanvas"></canvas>
+
+                    <!-- Instruction Banner Top Left -->
+                    <div class="absolute top-2 left-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-sky-200 text-xs text-sky-900 font-bold shadow-md max-w-md flex items-center gap-2 z-10">
+                        <i class="fa-solid fa-circle-info text-sky-500 text-sm"></i>
+                        <span id="missionGuide">Misi 1: Dekati pintu rumah tetangga, lalu tekan 'ANTAR SUP'! Melompatlah saat melintasi rintangan.</span>
+                    </div>
+
+                    <!-- Comfort Indicator for Level 2 -->
+                    <div id="comfortBarContainer" class="absolute top-2 right-2 bg-white/95 backdrop-blur-md p-2 rounded-xl border border-sky-200 shadow-md hidden flex-col w-44 z-10">
+                        <div class="text-[10px] font-black text-slate-600 flex justify-between mb-1">
+                            <span>Kenyamanan Tetangga:</span>
+                            <span id="comfortPercent">100%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                            <div id="comfortBar" class="bg-emerald-500 h-full w-full transition-all duration-300"></div>
+                        </div>
+                    </div>
+
+                    <!-- Level 3 Drag & Drop UI Overlay -->
+                    <div id="level3UI" class="absolute inset-0 hidden flex-col justify-between p-4 pointer-events-none z-10">
+                        <div class="mt-10 flex justify-center gap-4 pointer-events-auto">
+                            <div id="item1" draggable="true" ondragstart="drag(event)" class="drag-item bg-white p-3 rounded-2xl shadow-lg border-2 border-amber-300 flex flex-col items-center w-28 text-center">
+                                <span class="text-3xl mb-1">🍎</span>
+                                <span class="text-[10px] font-extrabold text-slate-700">Buah Segar</span>
+                            </div>
+                            <div id="item2" draggable="true" ondragstart="drag(event)" class="drag-item bg-white p-3 rounded-2xl shadow-lg border-2 border-emerald-300 flex flex-col items-center w-28 text-center">
+                                <span class="text-3xl mb-1">💊</span>
+                                <span class="text-[10px] font-extrabold text-slate-700">Obat Sehat</span>
+                            </div>
+                            <div id="item3" draggable="true" ondragstart="drag(event)" class="drag-item bg-white p-3 rounded-2xl shadow-lg border-2 border-sky-300 flex flex-col items-center w-28 text-center">
+                                <span class="text-3xl mb-1">🤲</span>
+                                <span class="text-[10px] font-extrabold text-slate-700">Kartu Doa</span>
+                            </div>
+                        </div>
+
+                        <div id="dropZone" ondrop="drop(event)" ondragover="allowDrop(event)" class="pointer-events-auto mx-auto mb-10 w-64 h-32 bg-amber-100/90 border-4 border-dashed border-amber-500 rounded-3xl flex flex-col items-center justify-center p-2 text-center shadow-xl backdrop-blur-sm">
+                            <i class="fa-solid fa-basket-shopping text-3xl text-amber-700 mb-1"></i>
+                            <span class="text-xs font-black text-amber-900">Tas Bingkisan Jenguk</span>
+                            <span class="text-[10px] text-amber-700">Tarik ketiga item ke sini!</span>
+                        </div>
+                    </div>
+
+                    <!-- On-Screen Controls for Movement & Action -->
+                    <div id="touchControls" class="absolute bottom-2 left-3 right-3 flex justify-between items-center pointer-events-none z-20">
+                        <div class="flex gap-2 pointer-events-auto">
+                            <button id="btnLeft" class="w-12 h-12 bg-white/95 active:bg-sky-200 text-sky-900 rounded-2xl shadow-lg border-2 border-sky-300 text-xl font-bold flex items-center justify-center btn-bounce">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <button id="btnRight" class="w-12 h-12 bg-white/95 active:bg-sky-200 text-sky-900 rounded-2xl shadow-lg border-2 border-sky-300 text-xl font-bold flex items-center justify-center btn-bounce">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                            <button id="btnJump" class="w-12 h-12 bg-amber-300 active:bg-amber-400 text-amber-950 rounded-2xl shadow-lg border-2 border-amber-400 text-lg font-bold flex items-center justify-center btn-bounce" title="Lompat / Hindari">
+                                <i class="fa-solid fa-arrow-up"></i>
+                            </button>
+                        </div>
+                        <div class="pointer-events-auto">
+                            <button onclick="performAction()" id="actionBtn" class="bg-amber-400 active:bg-amber-500 text-amber-950 font-extrabold px-6 py-3 rounded-2xl shadow-lg border-2 border-amber-500 text-xs md:text-sm flex items-center gap-2 btn-bounce">
+                                <i class="fa-solid fa-hand-holding-heart text-lg"></i> <span id="actionBtnText">ANTAR SUP</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. RESULT SCREEN -->
+                <div id="resultScreen" class="absolute inset-0 z-30 hidden flex-col items-center justify-center p-6 bg-white/95 backdrop-blur-md rounded-2xl border-4 border-sky-300 text-center animate-pop">
+                    <div class="w-20 h-20 bg-amber-400 text-amber-900 rounded-full flex items-center justify-center text-4xl mb-2 shadow-lg border-4 border-white">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-800 mb-1">Misi Selesai! Tetangga Bahagia!</h2>
+                    <p id="resultPlayerInfo" class="text-sky-700 font-bold text-xs mb-3">Siswa PAI - Kelas 6</p>
+
+                    <div class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-4 w-full max-w-sm mb-4">
+                        <div class="text-[10px] text-slate-500 font-bold uppercase mb-1">Total Poin Akhlak Teruji</div>
+                        <div id="finalScore" class="text-4xl font-black text-emerald-600 mb-1">100</div>
+                        <p class="text-xs text-slate-600 leading-relaxed font-medium">
+                            Selamat! Kamu telah berhasil mempraktikkan Hak dan Kewajiban Berakhlak Mulia kepada Tetangga!
+                        </p>
+                    </div>
+
+                    <button onclick="restartGame()" class="bg-sky-500 hover:bg-sky-600 text-white font-extrabold px-6 py-2.5 rounded-2xl shadow-md border-b-4 border-sky-700 btn-bounce flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-rotate-right"></i> Main Lagi
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- FOOTER INFO BAR -->
+            <div class="flex justify-between items-center text-[11px] font-bold text-sky-900 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-sky-200">
+                <div><i class="fa-solid fa-heart text-red-500 mr-1"></i> Media Edukasi PAI Kelas 6 - Akhlak Kepada Tetangga</div>
+                <div id="displayPlayerInfo" class="hidden sm:block text-slate-600">Pemain: <span id="footerPlayerName" class="font-extrabold text-sky-900">-</span></div>
+            </div>
+
+            <!-- EDUCATIONAL FEEDBACK MODAL -->
+            <div id="feedbackModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-3xl p-5 max-w-md w-full border-4 shadow-2xl animate-pop text-center relative" id="feedbackBorder">
+                    <div id="feedbackIconContainer" class="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl mb-2 border-4 border-white shadow-md">
+                        <i id="feedbackIcon" class="fa-solid fa-check"></i>
+                    </div>
+
+                    <h3 id="feedbackTitle" class="text-lg font-black mb-1">Umpan Balik Akhlak</h3>
+
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-left mb-4">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Hikmah Pembelajaran PAI:</div>
+                        <p id="feedbackText" class="text-slate-700 text-xs leading-relaxed font-medium">
+                            Penjelasan edukatif permainan...
+                        </p>
+                    </div>
+
+                    <button onclick="closeFeedback()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-extrabold py-2 rounded-2xl shadow-lg border-b-4 border-sky-700 btn-bounce text-xs md:text-sm">
+                        Lanjutkan Aksi <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- DEVELOPER MODAL -->
+            <div id="developerModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-3xl p-5 max-w-sm w-full border-4 border-purple-400 shadow-2xl animate-pop relative">
+                    <button onclick="closeDeveloperModal()" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
+                    <div class="text-center mb-3">
+                        <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-1 border-2 border-purple-300">
+                            <i class="fa-solid fa-user-gear"></i>
+                        </div>
+                        <h3 class="text-base font-black text-slate-800">Profil Pengembang</h3>
+                        <p class="text-[10px] text-purple-600 font-bold">Media Pembelajaran PAI Kelas 6 SD</p>
+                    </div>
+
+                    <div class="space-y-2 bg-purple-50 p-3 rounded-2xl border border-purple-200 text-xs">
+                        <div class="flex justify-between border-b border-purple-200 pb-1">
+                            <span class="text-slate-500 font-semibold">Mata Pelajaran:</span>
+                            <span class="font-bold text-purple-900">PAI & Budi Pekerti</span>
+                        </div>
+                        <div class="flex justify-between border-b border-purple-200 pb-1">
+                            <span class="text-slate-500 font-semibold">Materi / Fase:</span>
+                            <span class="font-bold text-purple-900">Akhlak Tetangga / Fase C</span>
+                        </div>
+                        <div class="flex justify-between border-b border-purple-200 pb-1">
+                            <span class="text-slate-500 font-semibold">Nama Siswa:</span>
+                            <span id="devNameDisplay" class="font-bold text-purple-900">Siswa PAI</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500 font-semibold">Kelas:</span>
+                            <span id="devClassDisplay" class="font-bold text-purple-900">6 SD</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <button onclick="closeDeveloperModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2 rounded-xl text-xs btn-bounce">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- GAME LOGIC SCRIPT -->
+    <script>
+        let playerName = "Ahmad Hasnan";
+        let playerClass = "6 SD";
+        let score = 0;
+        let currentLevel = 1;
+        let soundEnabled = true;
+        let comfortLevel = 100;
+        let comfortInterval;
+
+        let canvas, ctx;
+        let animationFrameId;
+
+        let moveState = null;
+
+        // Player Attributes
+        let player = {
+            x: 50,
+            y: 0,
+            velocityY: 0,
+            isJumping: false,
+            width: 45,
+            height: 65,
+            speed: 6.5,
+            facingRight: true,
+            isNearTarget: false,
+            currentTarget: null
+        };
+
+        // Level 1: Houses Positions
+        let houses = [
+            { id: 1, x: 220, label: "Rumah Pak Ahmad", color: "#f87171", roofColor: "#991b1b", delivered: false },
+            { id: 2, x: 500, label: "Rumah Bu Siti", color: "#fbbf24", roofColor: "#b45309", delivered: false },
+            { id: 3, x: 780, label: "Rumah Mbah Joko", color: "#60a5fa", roofColor: "#1e40af", delivered: false }
+        ];
+
+        // Obstacles
+        let obstaclesLvl1 = [
+            { x: 370, icon: "🌧️", label: "Genangan Air" },
+            { x: 650, icon: "🐱", label: "Kucing Melintas" }
+        ];
+
+        // Level 2 Items
+        let itemsLevel2 = [
+            { x: 240, icon: "🧹", label: "Sampah Pagar", cleaned: false },
+            { x: 520, icon: "🔊", label: "Musik Bising", cleaned: false },
+            { x: 800, icon: "🍂", label: "Daun Kering", cleaned: false }
+        ];
+
+        let level3Collected = 0;
+
+        const synth = new Tone.Synth().toDestination();
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (type === 'correct') {
+                    synth.triggerAttackRelease("C5", "8n", Tone.now());
+                    synth.triggerAttackRelease("G5", "8n", Tone.now() + 0.1);
+                } else if (type === 'wrong') {
+                    synth.triggerAttackRelease("G3", "8n", Tone.now());
+                } else if (type === 'click') {
+                    synth.triggerAttackRelease("E4", "16n", Tone.now());
+                } else if (type === 'jump') {
+                    synth.triggerAttackRelease("A4", "16n", Tone.now());
+                }
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('audioIcon').className = soundEnabled ? "fa-solid fa-volume-high text-sm" : "fa-solid fa-volume-xmark text-sm text-red-500";
+        }
+
+        window.onload = function() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            setupTouchEvents();
+        };
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        function setupTouchEvents() {
+            const btnLeft = document.getElementById('btnLeft');
+            const btnRight = document.getElementById('btnRight');
+            const btnJump = document.getElementById('btnJump');
+
+            const bindBtn = (btn, action) => {
+                ['mousedown', 'touchstart'].forEach(evt => {
+                    btn.addEventListener(evt, (e) => {
+                        e.preventDefault();
+                        if (action === 'left') moveState = 'left';
+                        if (action === 'right') moveState = 'right';
+                        if (action === 'jump') jumpPlayer();
+                    });
+                });
+                ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(evt => {
+                    btn.addEventListener(evt, (e) => {
+                        if (action === 'left' || action === 'right') moveState = null;
+                    });
+                });
+            };
+
+            bindBtn(btnLeft, 'left');
+            bindBtn(btnRight, 'right');
+            bindBtn(btnJump, 'jump');
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('playerNameInput').value.trim();
+            const classInput = document.getElementById('playerClassInput').value.trim();
+
+            if (nameInput) playerName = nameInput;
+            if (classInput) playerClass = classInput;
+
+            document.getElementById('footerPlayerName').innerText = `${playerName} (${playerClass})`;
+            document.getElementById('displayPlayerInfo').classList.remove('hidden');
+            document.getElementById('devNameDisplay').innerText = playerName;
+            document.getElementById('devClassDisplay').innerText = playerClass;
+
+            playSound('click');
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameplayScreen').classList.remove('hidden');
+
+            score = 0;
+            setupLevel(1);
+            gameLoop();
+        }
+
+        function setupLevel(lvl) {
+            currentLevel = lvl;
+            player.x = 50;
+            player.y = 0;
+            player.velocityY = 0;
+            player.isJumping = false;
+            player.isNearTarget = false;
+            player.currentTarget = null;
+            
+            document.getElementById('comfortBarContainer').classList.add('hidden');
+            document.getElementById('level3UI').classList.add('hidden');
+            document.getElementById('touchControls').classList.remove('hidden');
+
+            if (lvl === 1) {
+                document.getElementById('levelBadge').innerText = "Level 1: Kewajiban Berbagi Makanan";
+                document.getElementById('missionGuide').innerText = "Misi 1: Berjalan mendekati pintu rumah tetangga! Tekan 'ANTAR SUP' untuk berbagi makanan. Gunakan 'LOMPAT ⬆' melompati rintangan.";
+                document.getElementById('actionBtnText').innerText = "ANTAR SUP";
+            } else if (lvl === 2) {
+                document.getElementById('levelBadge').innerText = "Level 2: Hak Ketenangan & Kebersihan";
+                document.getElementById('missionGuide').innerText = "Misi 2: Dekati lokasi masalah, lalu bersihkan sampah & matikan suara bising!";
+                document.getElementById('actionBtnText').innerText = "BERSIHKAN / MATIKAN";
+                document.getElementById('comfortBarContainer').classList.remove('hidden');
+                document.getElementById('comfortBarContainer').classList.add('flex');
+                
+                comfortLevel = 100;
+                startComfortTimer();
+            } else if (lvl === 3) {
+                document.getElementById('levelBadge').innerText = "Level 3: Menjenguk Tetangga Sakit";
+                document.getElementById('missionGuide').innerText = "Misi 3: Tarik (Drag & Drop) Buah, Obat, dan Kartu Doa ke dalam Tas Jenguk!";
+                document.getElementById('level3UI').classList.remove('hidden');
+                document.getElementById('level3UI').classList.add('flex');
+                document.getElementById('touchControls').classList.add('hidden');
+            }
+        }
+
+        function startComfortTimer() {
+            clearInterval(comfortInterval);
+            comfortInterval = setInterval(() => {
+                if (currentLevel === 2) {
+                    comfortLevel -= 2;
+                    document.getElementById('comfortPercent').innerText = `${Math.max(0, comfortLevel)}%`;
+                    document.getElementById('comfortBar').style.width = `${Math.max(0, comfortLevel)}%`;
+
+                    if (comfortLevel <= 0) {
+                        clearInterval(comfortInterval);
+                        playSound('wrong');
+                        showFeedback(
+                            "Kenyamanan Tetangga Berkurang! ⚠️",
+                            "Aduh! Tetangga merasa terganggu dengan sampah dan suara bising. Tetangga berhak mendapatkan ketenangan dan kebersihan lingkungan!",
+                            false
+                        );
+                        comfortLevel = 100;
+                    }
+                }
+            }, 1000);
+        }
+
+        // Key Controls
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveState = 'left';
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveState = 'right';
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') jumpPlayer();
+            if (e.key === ' ' || e.key === 'Enter') performAction();
+        });
+
+        window.addEventListener('keyup', function(e) {
+            if (['ArrowLeft', 'a', 'A', 'ArrowRight', 'd', 'D'].includes(e.key)) {
+                moveState = null;
+            }
+        });
+
+        function jumpPlayer() {
+            if (!player.isJumping) {
+                player.isJumping = true;
+                player.velocityY = -16; // Stronger Jump Height
+                playSound('jump');
+            }
+        }
+
+        function performAction() {
+            playSound('click');
+            if (currentLevel === 1) {
+                if (player.isNearTarget && player.currentTarget && !player.currentTarget.delivered) {
+                    player.currentTarget.delivered = true;
+                    score += 35;
+                    updateScoreUI();
+                    showFeedback(
+                        `Berbagi Rezeki ke ${player.currentTarget.label} ✨`,
+                        "Rasulullah SAW bersabda: 'Wahai Abu Dzar, jika kamu memasak sup/kuah, perbanyaklah airnya dan bagikan kepada tetanggamu.' (HR. Muslim). Berbagi makanan kepada tetangga adalah kewajiban akhlak mulia!",
+                        true
+                    );
+                }
+            } else if (currentLevel === 2) {
+                if (player.isNearTarget && player.currentTarget && !player.currentTarget.cleaned) {
+                    player.currentTarget.cleaned = true;
+                    score += 35;
+                    updateScoreUI();
+                    showFeedback(
+                        "Hak Tetangga Atas Ketenangan 🛡️",
+                        `Kamu berhasil merapikan ${player.currentTarget.label}. Setiap tetangga berhak mendapatkan lingkungan yang bersih, tenang, dan bebas dari gangguan bising!`,
+                        true
+                    );
+                }
+            }
+        }
+
+        function updateScoreUI() {
+            document.getElementById('scoreText').innerText = `Poin Akhlak: ${score}`;
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Movement
+            if (moveState === 'left') {
+                player.x = Math.max(20, player.x - player.speed);
+                player.facingRight = false;
+            } else if (moveState === 'right') {
+                player.x = Math.min(canvas.width - 60, player.x + player.speed);
+                player.facingRight = true;
+            }
+
+            // Gravity & Jump Physics
+            if (player.isJumping) {
+                player.y += player.velocityY;
+                player.velocityY += 0.8; // Gravity
+
+                if (player.y >= 0) {
+                    player.y = 0;
+                    player.velocityY = 0;
+                    player.isJumping = false;
+                }
+            }
+
+            // Environment Background
+            ctx.fillStyle = "#7dd3fc";
+            ctx.fillRect(0, 0, canvas.width, canvas.height - 100);
+            ctx.fillStyle = "#4ade80";
+            ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+            ctx.fillStyle = "#64748b";
+            ctx.fillRect(0, canvas.height - 60, canvas.width, 35);
+
+            player.isNearTarget = false;
+            player.currentTarget = null;
+
+            if (currentLevel === 1) {
+                // HOUSES
+                houses.forEach(h => {
+                    const houseY = canvas.height - 170;
+                    
+                    ctx.fillStyle = h.color;
+                    ctx.fillRect(h.x, houseY, 100, 80);
+
+                    ctx.fillStyle = h.roofColor;
+                    ctx.beginPath();
+                    ctx.moveTo(h.x - 12, houseY);
+                    ctx.lineTo(h.x + 50, houseY - 45);
+                    ctx.lineTo(h.x + 112, houseY);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#78350f";
+                    ctx.fillRect(h.x + 38, houseY + 40, 24, 40);
+
+                    ctx.fillStyle = "#e0f2fe";
+                    ctx.fillRect(h.x + 12, houseY + 15, 20, 20);
+                    ctx.fillRect(h.x + 68, houseY + 15, 20, 20);
+
+                    ctx.fillStyle = "#0f172a";
+                    ctx.font = "bold 12px Fredoka";
+                    ctx.textAlign = "center";
+                    ctx.fillText(h.label, h.x + 50, houseY - 55);
+
+                    if (h.delivered) {
+                        ctx.fillStyle = "#15803d";
+                        ctx.fillText("✅ Sup Terkirim", h.x + 50, houseY - 10);
+                    } else {
+                        ctx.fillStyle = "#b91c1c";
+                        ctx.fillText("🍲 Ingin Sup", h.x + 50, houseY - 10);
+                    }
+
+                    let doorCenterX = h.x + 50;
+                    if (Math.abs((player.x + 22) - doorCenterX) < 45) {
+                        player.isNearTarget = true;
+                        player.currentTarget = h;
+
+                        if (!h.delivered) {
+                            ctx.fillStyle = "rgba(245, 158, 11, 0.4)";
+                            ctx.beginPath();
+                            ctx.arc(doorCenterX, houseY + 40, 30, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            ctx.fillStyle = "#d97706";
+                            ctx.font = "bold 11px Fredoka";
+                            ctx.fillText("Tekan ANTAR SUP 👇", doorCenterX, houseY + 25);
+                        }
+                    }
+                });
+
+                // OBSTACLES WITH JUMP INVULNERABILITY
+                obstaclesLvl1.forEach(obs => {
+                    ctx.font = "26px Serif";
+                    ctx.fillText(obs.icon, obs.x, canvas.height - 65);
+
+                    // Check collision ONLY if player is near ground (not jumping)
+                    if (Math.abs((player.x + 22) - obs.x) < 22 && player.y > -35) {
+                        playSound('wrong');
+                        showFeedback(
+                            "Hati-hati Jalanan! ⚠️",
+                            `Kamu tersandung ${obs.label}! Gunakan tombol LOMPAT ⬆ untuk melompati rintangan jalan.`,
+                            false
+                        );
+                        player.x -= 50;
+                    }
+                });
+
+            } else if (currentLevel === 2) {
+                itemsLevel2.forEach(item => {
+                    const itemY = canvas.height - 75;
+                    ctx.font = "32px Serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(item.cleaned ? "✨" : item.icon, item.x, itemY);
+                    
+                    ctx.fillStyle = "#0f172a";
+                    ctx.font = "bold 11px Fredoka";
+                    ctx.fillText(item.cleaned ? "Bersih ✅" : item.label, item.x, itemY + 15);
+
+                    if (Math.abs((player.x + 22) - item.x) < 40) {
+                        player.isNearTarget = true;
+                        player.currentTarget = item;
+
+                        if (!item.cleaned) {
+                            ctx.fillStyle = "#d97706";
+                            ctx.font = "bold 11px Fredoka";
+                            ctx.fillText("Tekan BERSIHKAN 👇", item.x, itemY - 35);
+                        }
+                    }
+                });
+            }
+
+            const actionBtn = document.getElementById('actionBtn');
+            if (player.isNearTarget && player.currentTarget && !player.currentTarget.delivered && !player.currentTarget.cleaned) {
+                actionBtn.classList.add('btn-pulse');
+            } else {
+                actionBtn.classList.remove('btn-pulse');
+            }
+
+            // PLAYER CHARACTER
+            if (currentLevel !== 3) {
+                let playerPosY = (canvas.height - 115) + player.y;
+                let playerCenterX = player.x + 22;
+
+                ctx.fillStyle = "rgba(0,0,0,0.2)";
+                ctx.beginPath();
+                ctx.ellipse(playerCenterX, canvas.height - 50, 18, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath();
+                ctx.roundRect(player.x + 8, playerPosY + 20, 28, 22, 6);
+                ctx.fill();
+
+                ctx.fillStyle = "#dc2626";
+                ctx.fillRect(player.x + 10, playerPosY + 40, 24, 16);
+
+                ctx.fillStyle = "#fde047";
+                ctx.fillRect(player.x + 12, playerPosY + 56, 7, 10);
+                ctx.fillRect(player.x + 25, playerPosY + 56, 7, 10);
+
+                ctx.fillStyle = "#fde047";
+                ctx.beginPath();
+                ctx.arc(playerCenterX, playerPosY + 10, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(player.x + 10, playerPosY - 7, 24, 10);
+
+                ctx.fillStyle = "#0f172a";
+                ctx.beginPath();
+                ctx.arc(player.facingRight ? playerCenterX + 4 : playerCenterX - 4, playerPosY + 8, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = "16px Serif";
+                ctx.fillText("🍲", player.facingRight ? player.x + 30 : player.x - 5, playerPosY + 32);
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            var data = ev.dataTransfer.getData("text");
+            var draggedElement = document.getElementById(data);
+            if (draggedElement) {
+                draggedElement.style.display = "none";
+                level3Collected++;
+                score += 30;
+                updateScoreUI();
+
+                if (level3Collected === 1) {
+                    showFeedback("Kewajiban Menjenguk Tetangga Sakit 🍎", "Membawa buah segar membantu memulihkan kesehatan dan mencerahkan suasana hati tetangga yang sedang terbaring sakit.", true);
+                } else if (level3Collected === 2) {
+                    showFeedback("Kepedulian & Pertolongan 💊", "Membantu obat-obatan dan perhatian adalah wujud kepedulian sosial dalam hidup bertetangga.", true);
+                } else if (level3Collected === 3) {
+                    showFeedback("Mendoakan Kesembuhan 🤲", "Doa 'Syafakallah' (Semoga Allah memberikan kesembuhan padamu) adalah hak persaudaraan sesama tetangga!", true);
+                }
+            }
+        }
+
+        function showFeedback(titleText, bodyText, isGood) {
+            playSound(isGood ? 'correct' : 'wrong');
+            const modal = document.getElementById('feedbackModal');
+            document.getElementById('feedbackTitle').innerText = titleText;
+            document.getElementById('feedbackText').innerText = bodyText;
+
+            const border = document.getElementById('feedbackBorder');
+            const iconContainer = document.getElementById('feedbackIconContainer');
+            const icon = document.getElementById('feedbackIcon');
+
+            if (isGood) {
+                border.className = "bg-white rounded-3xl p-5 max-w-md w-full border-4 border-emerald-400 shadow-2xl animate-pop text-center relative";
+                iconContainer.className = "w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl mb-2 border-4 border-white shadow-md bg-emerald-500 text-white";
+                icon.className = "fa-solid fa-check";
+            } else {
+                border.className = "bg-white rounded-3xl p-5 max-w-md w-full border-4 border-amber-400 shadow-2xl animate-pop text-center relative";
+                iconContainer.className = "w-12 h-12 rounded-full mx-auto flex items-center justify-center text-2xl mb-2 border-4 border-white shadow-md bg-amber-500 text-white";
+                icon.className = "fa-solid fa-exclamation";
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeFeedback() {
+            playSound('click');
+            document.getElementById('feedbackModal').classList.add('hidden');
+
+            if (currentLevel === 1) {
+                const allDelivered = houses.every(h => h.delivered);
+                if (allDelivered) setupLevel(2);
+            } else if (currentLevel === 2) {
+                const allCleaned = itemsLevel2.every(i => i.cleaned);
+                if (allCleaned) {
+                    clearInterval(comfortInterval);
+                    setupLevel(3);
+                }
+            } else if (currentLevel === 3) {
+                if (level3Collected >= 3) {
+                    showResult();
+                }
+            }
+        }
+
+        function showResult() {
+            cancelAnimationFrame(animationFrameId);
+            document.getElementById('gameplayScreen').classList.add('hidden');
+            
+            const resultScreen = document.getElementById('resultScreen');
+            resultScreen.classList.remove('hidden');
+            resultScreen.classList.add('flex');
+
+            document.getElementById('resultPlayerInfo').innerText = `${playerName} - Kelas ${playerClass}`;
+            document.getElementById('finalScore').innerText = score;
+        }
+
+        function restartGame() {
+            playSound('click');
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('flex');
+            
+            houses.forEach(h => h.delivered = false);
+            itemsLevel2.forEach(i => i.cleaned = false);
+            level3Collected = 0;
+            
+            document.getElementById('item1').style.display = "flex";
+            document.getElementById('item2').style.display = "flex";
+            document.getElementById('item3').style.display = "flex";
+
+            startGame();
+        }
+
+        function openDeveloperModal() {
+            playSound('click');
+            document.getElementById('developerModal').classList.remove('hidden');
+        }
+
+        function closeDeveloperModal() {
+            playSound('click');
+            document.getElementById('developerModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
